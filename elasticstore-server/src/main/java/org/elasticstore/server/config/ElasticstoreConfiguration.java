@@ -26,10 +26,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
-import org.springframework.core.env.Environment;
+import org.springframework.security.config.annotation.web.servlet.configuration.EnableWebMvcSecurity;
 
 @Configuration
 @EnableAutoConfiguration
+@EnableWebMvcSecurity
 @ComponentScan(basePackages = {"org.elasticstore.server"})
 public class ElasticstoreConfiguration {
 
@@ -47,5 +48,10 @@ public class ElasticstoreConfiguration {
         final ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JSR310Module());
         return mapper;
+    }
+
+    @Bean
+    public ElasticStoreSecurityConfigurer elasticStoreSecurityConfiguration() {
+        return new ElasticStoreSecurityConfigurer();
     }
 }

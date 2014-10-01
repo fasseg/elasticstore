@@ -16,10 +16,13 @@
 package org.elasticstore.server.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
+import org.apache.http.client.fluent.Executor;
 import org.apache.http.client.fluent.Request;
 import org.apache.http.entity.ContentType;
 import org.elasticstore.common.model.Item;
+import org.elasticstore.server.config.ElasticStoreSecurityConfigurer;
 import org.elasticstore.server.config.ElasticstoreConfiguration;
 import org.elasticstore.server.integration.fixtures.Fixtures;
 import org.junit.Assert;
@@ -39,7 +42,7 @@ import static junit.framework.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 @RunWith(SpringJUnit4ClassRunner.class)
-@SpringApplicationConfiguration(classes = ElasticstoreConfiguration.class)
+@SpringApplicationConfiguration(classes = {ElasticstoreConfiguration.class, ElasticStoreSecurityConfigurer.class})
 @WebAppConfiguration
 @ActiveProfiles("filesystem")
 @IntegrationTest("server.port:8071")
@@ -49,6 +52,7 @@ public class ItemIT {
     protected int serverPort;
     protected String serverHost = "localhost";
     protected String serverUrl;
+    protected Executor executor;
 
     @Autowired
     private ObjectMapper mapper;
@@ -56,22 +60,26 @@ public class ItemIT {
     @PostConstruct
     private void init() {
         serverUrl = "http://" + serverHost + ":" + serverPort;
+        final HttpHost host = new HttpHost(serverHost, serverPort);
+        executor = Executor.newInstance()
+                .auth(host, "test", "test")
+                .authPreemptive(host);
     }
 
     @Test
     public void testCreateRetrieveAndDeleteItem() throws Exception {
         final Item item = Fixtures.randomItem();
         // create the item
-        HttpResponse resp = Request.Post(serverUrl + "/item")
-                .bodyString(mapper.writeValueAsString(item), ContentType.APPLICATION_JSON)
-                .execute()
+        HttpResponse resp = executor.execute(Request.Post(serverUrl + "/item")
+                    .useExpectContinue()
+                    .bodyString(mapper.writeValueAsString(item), ContentType.APPLICATION_JSON))
                 .returnResponse();
 
         assertEquals(201, resp.getStatusLine().getStatusCode());
 
         // retrieve the item
-        resp = Request.Get(serverUrl + "/item/" + item.getId())
-                .execute()
+        resp = executor.execute(Request.Get(serverUrl + "/item/" + item.getId())
+                .useExpectContinue())
                 .returnResponse();
         assertEquals(200, resp.getStatusLine().getStatusCode());
         final Item fetched = mapper.readValue(resp.getEntity().getContent(), Item.class);
@@ -81,14 +89,14 @@ public class ItemIT {
         assertNotNull(fetched.getLastModified());
 
         // delete the item
-        resp = Request.Delete(serverUrl + "/item/" + item.getId())
-                .execute()
+        resp = executor.execute(Request.Delete(serverUrl + "/item/" + item.getId())
+                        .useExpectContinue())
                 .returnResponse();
         Assert.assertEquals(200, resp.getStatusLine().getStatusCode());
 
         //retrieve the item again and assert a 404
-        resp = Request.Get(serverUrl + "/item/" + item.getId())
-                .execute()
+        resp = executor.execute(Request.Get(serverUrl + "/item/" + item.getId())
+                    .useExpectContinue())
                 .returnResponse();
         assertEquals(404, resp.getStatusLine().getStatusCode());
     }

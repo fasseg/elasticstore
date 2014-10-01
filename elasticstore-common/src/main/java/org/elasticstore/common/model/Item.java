@@ -17,6 +17,7 @@
 package org.elasticstore.common.model;
 
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.Map;
 
 import com.hp.hpl.jena.rdf.model.Model;
@@ -31,6 +32,15 @@ public class Item {
     private User creator;
     private Instant created;
     private Instant lastModified;
+    private Map<String, EnumSet<Permission>> permissions;
+
+    public Map<String, EnumSet<Permission>> getPermissions() {
+        return permissions;
+    }
+
+    public void setPermissions(Map<String, EnumSet<Permission>> permissions) {
+        this.permissions = permissions;
+    }
 
     public String getId() {
         return id;
